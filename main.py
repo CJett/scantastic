@@ -12,8 +12,8 @@ PROCESSED_DIR = os.path.join(os.path.split(__file__)[0],"processed")
 os.makedirs(PROCESSED_DIR,exist_ok=True)
 app.add_static_files(url_path='/static',local_directory=PROCESSED_DIR)
 
-SOURCE_DIR = r"C:\Users\caleb\SDRTrunk\recordings"
-LOCATION = "Phelps County"
+SOURCE_DIR = os.path.join(os.path.expanduser("~"),"SDRTrunk", "recordings")
+LOCATION = "x County"
 MODEL = "jacktol/whisper-medium.en-fine-tuned-for-ATC-faster-whisper"
 WHISPER_DEVICE = "cpu"
 WHISPER_COMPUTE = "int8"
