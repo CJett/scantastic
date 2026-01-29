@@ -1,4 +1,6 @@
 import asyncio
+import traceback
+
 from nicegui import ui, app, run
 import datetime
 import time
@@ -7,17 +9,12 @@ import shutil
 import json
 import tinytag
 from faster_whisper import WhisperModel
+from my_constants import *
 
-PROCESSED_DIR = os.path.join(os.path.split(__file__)[0],"processed")
 os.makedirs(PROCESSED_DIR,exist_ok=True)
 app.add_static_files(url_path='/static',local_directory=PROCESSED_DIR)
 
-SOURCE_DIR = os.path.join(os.path.expanduser("~"),"SDRTrunk", "recordings")
-LOCATION = "x County"
-MODEL = "jacktol/whisper-medium.en-fine-tuned-for-ATC-faster-whisper"
-WHISPER_DEVICE = "cpu"
-WHISPER_COMPUTE = "int8"
-REBROADCAST_DELAY_SECONDS = 60*15 # THERE MIGHT BE A LEGALLY REQUIRED DELAY WHERE YOU LIVE! CONSULT A LAWYER!
+
 
 try:
     with open("cache.json") as f:
@@ -36,15 +33,18 @@ def run_speech_to_text(model):
         if not row["text"]:
             print(f"TTS on {row['fpath']}")
             # transcription not done
-            segments, info = model.transcribe(row["fpath"], beam_size=5, language="en", vad_filter=True)
-            if segments:
-                row["text"] = "".join(seg.text for seg in segments).strip() or "-"
-            else:
+            try:
+                segments, info = model.transcribe(row["fpath"], beam_size=5, language="en", vad_filter=True)
+                if segments:
+                    row["text"] = "".join(seg.text for seg in segments).strip() or "-"
+                else:
+                    row["text"] = "-"
+                print(f"\t'{row['text']}'")
+                with open("cache.json", 'w') as f:
+                    f.write(json.dumps(files))
+            except:
+                print(traceback.format_exc())
                 row["text"] = "-"
-            print(f"\t'{row['text']}'")
-            with open("cache.json", 'w') as f:
-                f.write(json.dumps(files))
-
 def load_file(fname):
     try:
         print('Process', fname)
@@ -63,7 +63,7 @@ def load_file(fname):
 
         files.insert(0, meta_processed)
         with open("cache.json", 'w') as f:
-            f.write(json.dumps(files))
+            f.write(json.dumps(files, indent=2))
     except Exception as e:
         print(fname, e)
 
@@ -150,13 +150,13 @@ def main():
 
     ui.button('Refresh', on_click=refresh)
     table = ui.table(columns=[
-            {'name': 'datetime', 'label': 'Datetime', 'field': 'datetime', 'required': True, 'align': 'left',
-             'sortable': True},
             {'name': 'talkgroup', 'label': 'Talkgroup', 'field': 'talkgroup', 'required': True, 'align': 'left',
              'sortable': True},
             {'name': 'text', 'label': 'Speech-To-Text', 'field': 'text', 'align': 'left', 'style': 'text-wrap: wrap'},
             {'name': 'fname', 'label': 'Audio File', 'field': 'fname', 'align': 'left'},
-            {'name': 'length', 'label': 'Length', 'field': 'length', 'required': True, 'align': 'left', 'sortable': True},
+            {'name': 'datetime', 'label': 'Datetime', 'field': 'datetime', 'required': True, 'align': 'left',
+             'sortable': True},
+            # {'name': 'length', 'label': 'Length', 'field': 'length', 'required': True, 'align': 'left', 'sortable': True},
         ], rows=files, row_key="datetime", pagination=100).classes('w-full')
 
     table.add_slot('body-cell-fname', '''
@@ -169,4 +169,4 @@ def main():
     ''')
     ui.timer(0.5, scan_refresh)
 
-ui.run(title=f"Scantastic for {LOCATION}")
+ui.run(title=f"Scantastic for {LOCATION}", port=6969)
